@@ -89,17 +89,29 @@ begin
 	execute immediate
 	'select 
 		E''create procedure '|| schemaname_target || '.' || procedurename_target || '\n(\n'' 
-		|| string_agg(name || '' '' || case when datatype  = ''string'' then datatype || ''(256)'' else datatype end, E'',\n'') filter (where type = ''In'')
+		|| string_agg(insert(''""'', 2, 0, name) || '' '' || case when datatype  = ''string'' then datatype || ''(256)'' else datatype end, E'',\n'') filter (where type = ''In'')
 		|| E''\n) ''
 		|| E''\nRETURNS \n(\n''
 		|| string_agg
 			(
-				case when exists(select 1 from "SYS.ProcedureParams" a where SchemaName = ''' || schemaname_target || ''' and ProcedureName = ''' || procedurename_source || ''' and a.name = b.name and type = ''In'') then name || ''_out'' else name end 
+				case 
+					when exists
+						(
+							select 1 from "SYS.ProcedureParams" a 
+							where 
+								SchemaName = ''' || schemaname_source 
+								|| ''' and ProcedureName = ''' || procedurename_source 
+								|| ''' and a.name = b.name 
+								and type = ''In''
+						) 
+					then insert(''""'', 2, 0, name || ''_out'') 
+					else insert(''""'', 2, 0, name)
+				end 
 				|| '' '' 
 				|| case when datatype  = ''string'' then datatype || ''(256)'' else datatype end, E'',\n''
 			) filter (where type != ''In'')
 		|| E''\n) \nAS \nBEGIN \nCALL "' || schemaname_source || '"."' || procedurename_source || '"(\n''
-		|| string_agg(name || ''=> '' || name, E'',\n'') filter (where type = ''In'')
+		|| string_agg(insert(''""'', 2, 0, name) || ''=> '' || insert(''""'', 2, 0, name), E'',\n'') filter (where type = ''In'')
 		|| E''\n); \nend;'' 
 	from "SYS.ProcedureParams" b
 	where SchemaName = ''' || schemaname_source || ''' and ProcedureName = ''' || procedurename_source  || '''';
@@ -224,12 +236,13 @@ begin
     execute immediate
     'select 
         E''create view '|| schemaname_target || '.' || viewname_target || E'\n(\n'' 
-        || string_agg(name || '' '' || case when datatype  = ''string'' then datatype || ''(256)'' else datatype end, E'',\n'') 
+        || string_agg(insert(''""'', 2, 0, name) || '' '' || case when datatype  = ''string'' then datatype || ''(256)'' else datatype end, E'',\n'') 
         || E''\n)\n ''
-        || E''AS \nselect '' || string_agg(name, E'',\n'') || E''\nfrom  "' || schemaname_source || '"."' || procedurename_source || '"''
+        || E''AS \nselect '' || string_agg(insert(''""'', 2, 0, name), E'',\n'') || E''\nfrom  "' || schemaname_source || '"."' || procedurename_source || '"''
     from "SYS.ProcedureParams" b
     where SchemaName = ''' || schemaname_source || ''' and ProcedureName = ''' || procedurename_source  || '''';
 end ;;
+
 
 /* Data Virtuality exported objects */
 /* Created: 15.11.22  00:08:33.285 */
